@@ -31,14 +31,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openmrs/openmrs-esm-user-onboarding.git"
+    "url": "git+https://github.com/openmrs/openmrs-esm-user-onboarding-app.git"
   },
-  "homepage": "https://github.com/openmrs/openmrs-esm-user-onboarding#readme",
+  "homepage": "https://github.com/openmrs/openmrs-esm-user-onboarding-app#readme",
   "publishConfig": {
     "access": "public"
   },
   "bugs": {
-    "url": "https://github.com/openmrs/openmrs-esm-user-onboarding/issues"
+    "url": "https://openmrs.atlassian.net/jira/software/c/projects/O3/boards/37"
   },
   "dependencies": {
     "@carbon/react": "^1.83.0",

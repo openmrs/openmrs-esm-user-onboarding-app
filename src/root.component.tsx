@@ -110,6 +110,8 @@ const RootComponent: React.FC = () => {
         options={{
           overlayClickAction: false,
           skipScroll: true,
+          // Report missing targets straight away. waitForTarget hides the tour until they appear.
+          targetWaitTimeout: 0,
           zIndex: 10000,
         }}
         run={showTutorial}

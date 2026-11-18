@@ -13,9 +13,8 @@ vi.mock('react-joyride', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-joyride')>();
   return {
     ...actual,
-    __esModule: true,
-    default: vi.fn((props: any) => {
-      joyrideCallback = props.callback;
+    Joyride: vi.fn((props: any) => {
+      joyrideCallback = props.onEvent;
       return <div data-testid="joyride" data-run={props.run} data-step-index={props.stepIndex} />;
     }),
   };
@@ -47,7 +46,7 @@ describe('RootComponent', () => {
     vi.useRealTimers();
   });
 
-  it('renders ReactJoyride', () => {
+  it('renders Joyride', () => {
     render(<RootComponent />);
     expect(screen.getByTestId('joyride')).toBeInTheDocument();
   });
@@ -66,7 +65,7 @@ describe('RootComponent', () => {
     );
   });
 
-  it('sets disableBeacon on all steps when setSteps is called', () => {
+  it('sets skipBeacon on all steps when setSteps is called', () => {
     render(<RootComponent />);
     const context = getTutorialContext();
 
@@ -76,8 +75,30 @@ describe('RootComponent', () => {
 
     const updatedContext = getTutorialContext();
     updatedContext.steps.forEach((step) => {
-      expect(step.disableBeacon).toBe(true);
+      expect(step.skipBeacon).toBe(true);
     });
+  });
+
+  it('maps the configured spotlightClicks and disableOverlay step fields to Joyride options', () => {
+    render(<RootComponent />);
+    const context = getTutorialContext();
+
+    act(() => {
+      context.setSteps([
+        { target: '#step-1', content: 'Step 1' },
+        { target: '#step-2', content: 'Step 2', spotlightClicks: true, disableOverlay: true },
+      ]);
+    });
+
+    const [defaultStep, configuredStep] = getTutorialContext().steps;
+    expect(defaultStep).toEqual(
+      expect.objectContaining({ blockTargetInteraction: true, hideOverlay: false, skipBeacon: true }),
+    );
+    expect(configuredStep).toEqual(
+      expect.objectContaining({ blockTargetInteraction: false, hideOverlay: true, skipBeacon: true }),
+    );
+    expect(configuredStep).not.toHaveProperty('spotlightClicks');
+    expect(configuredStep).not.toHaveProperty('disableOverlay');
   });
 
   it('advances the step index on STEP_AFTER with NEXT action', () => {
@@ -164,7 +185,7 @@ describe('RootComponent', () => {
     expect(screen.getByTestId('joyride')).toHaveAttribute('data-run', 'false');
   });
 
-  it('polls for the target element on TOUR_START', () => {
+  it('keeps the tour running on TOUR_START', () => {
     render(<RootComponent />);
     const context = getTutorialContext();
 
@@ -173,6 +194,8 @@ describe('RootComponent', () => {
       context.setShowTutorial(true);
     });
 
+    // Joyride also emits TOUR_START when a paused tour resumes, so pausing here would loop.
+    // A missing first target is reported through TARGET_NOT_FOUND instead.
     act(() => {
       joyrideCallback({
         action: ACTIONS.START,
@@ -182,25 +205,7 @@ describe('RootComponent', () => {
       });
     });
 
-    // Tour should be hidden while waiting for target
-    const updatedContext = getTutorialContext();
-    expect(updatedContext.showTutorial).toBe(false);
-
-    // Add the target element to the DOM
-    const el = document.createElement('div');
-    el.id = 'step-1';
-    document.body.appendChild(el);
-
-    // Advance the polling interval
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    // Tour should be visible again
-    const finalContext = getTutorialContext();
-    expect(finalContext.showTutorial).toBe(true);
-
-    document.body.removeChild(el);
+    expect(getTutorialContext().showTutorial).toBe(true);
   });
 
   it('polls for the target element on TARGET_NOT_FOUND', () => {

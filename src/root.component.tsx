@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import ReactJoyride, { ACTIONS, type CallBackProps, EVENTS } from 'react-joyride';
+import { ACTIONS, EVENTS, type EventData, Joyride } from 'react-joyride';
 import { useDefineAppContext } from '@openmrs/esm-framework';
 import { type TutorialContext, type ExtendedStep } from './types';
 import CustomTooltip from './tooltip/tooltip.component';
@@ -23,12 +23,15 @@ const RootComponent: React.FC = () => {
     intervalIds.current.add(id);
   }, []);
 
-  // Set steps with default step options
+  // Set steps with default step options. Tutorial configs use the react-joyride v2 field names,
+  // so map them onto the equivalent v3 options here.
   const updateSteps = (newSteps: ExtendedStep[]) => {
     setSteps(
-      newSteps.map((step) => ({
+      newSteps.map(({ disableBeacon, disableOverlay, spotlightClicks, ...step }) => ({
         ...step,
-        disableBeacon: true,
+        skipBeacon: true,
+        hideOverlay: !!disableOverlay,
+        blockTargetInteraction: !spotlightClicks,
       })),
     );
   };
@@ -72,18 +75,9 @@ const RootComponent: React.FC = () => {
     trackInterval(interval);
   };
 
-  const currentStep = steps[stepIndex];
-  const overlayStyles = currentStep?.disableOverlay
-    ? { backgroundColor: 'transparent' }
-    : { height: document.body.scrollHeight };
-
-  const handleJoyrideCallback = (data: CallBackProps) => {
+  const handleJoyrideEvent = (data: EventData) => {
     const { action, index, type } = data;
     switch (type) {
-      case EVENTS.TOUR_START:
-        // The target not found event is not triggered when the tour starts
-        waitForTarget(0);
-        break;
       case EVENTS.STEP_BEFORE:
         onStepChange(index);
         break;
@@ -102,24 +96,27 @@ const RootComponent: React.FC = () => {
   };
 
   return (
-    <div onMouseDown={(e)=>{e.stopPropagation()}}>
-      <ReactJoyride
-        callback={handleJoyrideCallback}
+    <div
+      onMouseDown={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      <Joyride
+        onEvent={handleJoyrideEvent}
         continuous
         debug={false}
-        disableOverlayClose={true}
-        disableScrolling
+        // Keep the tooltip inside the viewport when the target is taller than the screen
+        floatingOptions={{ shiftOptions: { crossAxis: true } }}
+        options={{
+          overlayClickAction: false,
+          skipScroll: true,
+          // Report missing targets straight away. waitForTarget hides the tour until they appear.
+          targetWaitTimeout: 0,
+          zIndex: 10000,
+        }}
         run={showTutorial}
-        showProgress
-        showSkipButton
         stepIndex={stepIndex}
         steps={steps}
-        styles={{
-          options: {
-            zIndex: 10000,
-          },
-          overlay: overlayStyles,
-        }}
         tooltipComponent={(props) => <CustomTooltip {...props} step={steps[props.index]} totalSteps={steps.length} />}
       />
     </div>
